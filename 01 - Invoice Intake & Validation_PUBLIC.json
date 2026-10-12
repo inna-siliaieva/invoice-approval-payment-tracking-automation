@@ -1,0 +1,1270 @@
+{
+  "name": "01 - Invoice Intake & Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Invoice Submission",
+        "formDescription": "Submit invoice details for validation, approval and payment tracking.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Invoice Number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Supplier",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Project",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Invoice Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Due Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Amount",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Currency",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "EUR"
+                  },
+                  {
+                    "option": "USD"
+                  },
+                  {
+                    "option": "GBP"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Description",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -352,
+        -64
+      ],
+      "id": "a07e8bdb-bbed-4ed8-9024-ef62b329d0d1",
+      "name": "Invoice Submission Form"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7716fdb-4085-431d-969e-ed4d774a9df2",
+              "name": "invoiceId",
+              "value": "={{ 'INV-' + $now.toFormat('yyyyMMdd-HHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "25bc696b-231b-46fd-8db1-3f0c86cbdd06",
+              "name": "invoiceNumber",
+              "value": "={{ $json['Invoice Number'] }}",
+              "type": "string"
+            },
+            {
+              "id": "b3e8e30d-6622-42af-9d85-151f5f67a5ee",
+              "name": "supplier",
+              "value": "={{ $json.Supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "d024b595-b4e1-4a38-933f-d62d964c7f3c",
+              "name": "project",
+              "value": "={{ $json.Project }}",
+              "type": "string"
+            },
+            {
+              "id": "2e10b9b9-9d9c-4736-9cfd-c911239edce4",
+              "name": "invoiceDate",
+              "value": "={{ $json['Invoice Date'] }}",
+              "type": "string"
+            },
+            {
+              "id": "174c0136-df4a-4228-a216-a784ac4b7996",
+              "name": "dueDate",
+              "value": "={{ $json['Due Date'] }}",
+              "type": "string"
+            },
+            {
+              "id": "2d141f1b-e001-4bd1-8f4c-2eeb56e3c3f1",
+              "name": "amount",
+              "value": "={{ $json.Amount }}",
+              "type": "number"
+            },
+            {
+              "id": "df213dab-7f88-46dd-8cb5-799ec34bde4b",
+              "name": "currency",
+              "value": "={{ $json.Currency }}",
+              "type": "string"
+            },
+            {
+              "id": "7c67dbd6-cc68-42b1-94ab-4157cb3d70c3",
+              "name": "description",
+              "value": "={{ $json.Description }}",
+              "type": "string"
+            },
+            {
+              "id": "b17d20fa-1f38-4589-98fb-ad30382691fa",
+              "name": "submittedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "d6f6b851-74cd-4485-9a8b-e09da1c0375c",
+              "name": "status",
+              "value": "Received",
+              "type": "string"
+            },
+            {
+              "id": "defac4e1-e6ab-480c-ad31-bbaf1c9b9822",
+              "name": "approvalRequired",
+              "value": "No",
+              "type": "string"
+            },
+            {
+              "id": "be615f86-7cb1-49ef-8181-a6ef390d8f9e",
+              "name": "approvalDecision",
+              "value": "-",
+              "type": "string"
+            },
+            {
+              "id": "58b9e62c-5d82-49f4-b6a3-58f3da8fb601",
+              "name": "paidAt",
+              "value": "-",
+              "type": "string"
+            },
+            {
+              "id": "21e272fe-2448-4346-ae2e-4e2815283bd1",
+              "name": "reminderSent",
+              "value": "No",
+              "type": "string"
+            },
+            {
+              "id": "c4fcd044-0435-4893-a650-ba84e7a19081",
+              "name": "lastReminderDate",
+              "value": "-",
+              "type": "string"
+            },
+            {
+              "id": "e566da23-0c36-436c-8880-d43c09baa027",
+              "name": "approvedAt",
+              "value": "-",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -128,
+        -64
+      ],
+      "id": "d91bcaaa-aac0-4ca7-a6a9-60efb941c244",
+      "name": "Prepare Invoice Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "83bb9236-714b-4ebc-bef5-04b0d2359213",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "00fcb939-21ec-4b22-b1dc-6c9edf350f32",
+              "leftValue": "={{ $json.dueDate }}",
+              "rightValue": "={{ $json.invoiceDate }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        96,
+        -64
+      ],
+      "id": "b56dfb6c-0763-474d-939f-7772e70e283c",
+      "name": "Validate Invoice Data"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        320,
+        -160
+      ],
+      "id": "fd364596-821e-4c28-8e5a-77fcdb87109d",
+      "name": "Check Existing Invoice",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "91cab310-8102-4213-a3dc-9ae7a4555eba",
+              "leftValue": "={{ $json.duplicateFound }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        -144
+      ],
+      "id": "2a069077-f613-400a-982b-0ee51d90ae72",
+      "name": "Is Duplicate Invoice?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ac69c42a-41ef-4de5-86cb-f7aa665f41b2",
+              "leftValue": "={{ $('Prepare Invoice Data').item.json.amount }}",
+              "rightValue": 2000,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        0
+      ],
+      "id": "59d24a92-90f4-46d3-bb6b-aeafed933a0a",
+      "name": "Check Approval Threshold"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8d3a1664-6153-4780-a51f-2ce9c5bcf4ac",
+              "name": "status ",
+              "value": "Pending Approval",
+              "type": "string"
+            },
+            {
+              "id": "179eaa3a-4901-4c6d-b1ba-ef40b882df14",
+              "name": "approvalRequired",
+              "value": "Yes",
+              "type": "string"
+            },
+            {
+              "id": "1eefc245-8b7f-4262-a6e1-d1e03a32fa61",
+              "name": "approvalDecision",
+              "value": "-",
+              "type": "string"
+            },
+            {
+              "id": "a60dda41-6ed1-403b-a989-2027689891bb",
+              "name": "approvedAt",
+              "value": "-",
+              "type": "string"
+            },
+            {
+              "id": "b1f44b8b-ec01-4874-a188-be1259ee6997",
+              "name": "amount",
+              "value": "={{ $('Prepare Invoice Data').item.json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "bf5bdff7-b02b-4804-b323-9f15be76983f",
+              "name": "currency",
+              "value": "={{ $('Prepare Invoice Data').item.json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "f92e56fc-dcc4-46f3-b1c2-579976526006",
+              "name": "description",
+              "value": "={{ $('Prepare Invoice Data').item.json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "c01878b0-07de-4ccf-87d1-9f160ddeb665",
+              "name": " submittedAt",
+              "value": "={{ $('Prepare Invoice Data').item.json.submittedAt }}",
+              "type": "string"
+            },
+            {
+              "id": "e1ea2b29-974d-47fa-85c6-98aee451dd59",
+              "name": "paidAt",
+              "value": "={{ $('Prepare Invoice Data').item.json.paidAt }}",
+              "type": "string"
+            },
+            {
+              "id": "a30791ab-0e52-424a-bf09-f8962cc3c2e0",
+              "name": "reminderSent",
+              "value": "={{ $('Prepare Invoice Data').item.json.reminderSent }}",
+              "type": "string"
+            },
+            {
+              "id": "8d3945a3-8ac7-4fab-abe4-7269d838dc63",
+              "name": " lastReminderDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.lastReminderDate }}",
+              "type": "string"
+            },
+            {
+              "id": "2dab0506-c022-4696-9133-484b1fb35fac",
+              "name": "invoiceId",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceId }}",
+              "type": "string"
+            },
+            {
+              "id": "e7109566-0b60-4248-917b-ce7ffb6b3784",
+              "name": "invoiceNumber",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "d72c1c15-bbdf-4400-8d25-619193b0e0b2",
+              "name": "supplier",
+              "value": "={{ $('Prepare Invoice Data').item.json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "cbb013a7-1b7a-47cc-a49d-fc0598242278",
+              "name": "project",
+              "value": "={{ $('Prepare Invoice Data').item.json.project }}",
+              "type": "string"
+            },
+            {
+              "id": "ad6e5512-f9a8-4013-a9ef-595dc0b8b2ad",
+              "name": "invoiceDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceDate }}",
+              "type": "string"
+            },
+            {
+              "id": "9f9063d9-ae56-412f-9149-2d36f7ee8261",
+              "name": "dueDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.dueDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1328,
+        -96
+      ],
+      "id": "d1c2fcc1-94dd-4e6c-a374-55fe25c6940d",
+      "name": "Set Pending Approval"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "17de22e6-628c-4a88-b461-90ff40ff9b9f",
+              "name": "status",
+              "value": "Approved",
+              "type": "string"
+            },
+            {
+              "id": "dcf64b4d-83f4-4200-bc81-38a858ee84a7",
+              "name": "approvalRequired",
+              "value": "No",
+              "type": "string"
+            },
+            {
+              "id": "29baae34-8314-4e19-b8a2-4944da64f294",
+              "name": "approvalDecision",
+              "value": "Auto Approved",
+              "type": "string"
+            },
+            {
+              "id": "65816bf7-733a-4ff1-984e-88634185cdff",
+              "name": "approvedAt",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "078a6653-4f1c-415c-964f-daba9db29854",
+              "name": "invoiceId",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceId }}",
+              "type": "string"
+            },
+            {
+              "id": "a1754f4c-ad35-48a0-95ca-f5eaa5637d2e",
+              "name": "invoiceNumber",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "9bc90644-6a38-4755-93f3-7eb642499fe0",
+              "name": "supplier",
+              "value": "={{ $('Prepare Invoice Data').item.json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "ae150c97-419c-4682-8a20-287178a81ca0",
+              "name": "project",
+              "value": "={{ $('Prepare Invoice Data').item.json.project }}",
+              "type": "string"
+            },
+            {
+              "id": "c7506afb-de8b-4490-b36c-bafba0edc5e4",
+              "name": "invoiceDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.invoiceDate }}",
+              "type": "string"
+            },
+            {
+              "id": "757c4cb3-a636-4d8a-8e7d-5bf5edc6f82a",
+              "name": "dueDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.dueDate }}",
+              "type": "string"
+            },
+            {
+              "id": "02168f3d-3923-4962-96b7-5b8331fc6d4d",
+              "name": "amount",
+              "value": "={{ $('Prepare Invoice Data').item.json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "ef27bdc5-51af-4654-8eb1-061b7a8ea07f",
+              "name": "currency",
+              "value": "={{ $('Prepare Invoice Data').item.json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "f571fc17-5995-46d4-a0f3-46884e208906",
+              "name": "description",
+              "value": "={{ $('Prepare Invoice Data').item.json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "bf81a6b0-c08c-4e5e-b221-f819c92779bd",
+              "name": "submittedAt",
+              "value": "={{ $('Prepare Invoice Data').item.json.submittedAt }}",
+              "type": "string"
+            },
+            {
+              "id": "214109e6-261f-43e0-a9fb-21dc0708aa9a",
+              "name": "paidAt",
+              "value": "={{ $('Prepare Invoice Data').item.json.paidAt }}",
+              "type": "string"
+            },
+            {
+              "id": "febf4570-e40a-440b-ab7f-e3866bd1e61f",
+              "name": "reminderSent",
+              "value": "={{ $('Prepare Invoice Data').item.json.reminderSent }}",
+              "type": "string"
+            },
+            {
+              "id": "1cbe284a-5b04-48f3-8095-21cdc8bc7075",
+              "name": "lastReminderDate",
+              "value": "={{ $('Prepare Invoice Data').item.json.lastReminderDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1328,
+        96
+      ],
+      "id": "6fd10769-8aab-4a43-bb63-04b884f9e0de",
+      "name": "Set Auto Approved"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "705080c2-bfe4-48c0-9006-667c1fdd4e7f",
+              "name": "status",
+              "value": "Duplicate",
+              "type": "string"
+            },
+            {
+              "id": "a5ecf9cf-ccd6-46b4-a01e-dc354e427e9c",
+              "name": "duplicateDetected",
+              "value": "Yes",
+              "type": "string"
+            },
+            {
+              "id": "bd47ce28-8e69-4703-a390-25023d2c8ab7",
+              "name": "message",
+              "value": "Duplicate invoice detected",
+              "type": "string"
+            },
+            {
+              "id": "13da8abf-cde0-432a-926f-bc40567eda5e",
+              "name": "invoiceNumber",
+              "value": "={{ $json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "98c9a073-077c-4580-a86b-9ac52fd70592",
+              "name": "supplier",
+              "value": "={{ $json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "e41d670f-485b-48d0-85a7-d888ff14ca65",
+              "name": "invoiceId",
+              "value": "={{ $json.invoiceId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1104,
+        -192
+      ],
+      "id": "bac81e38-e3ce-4e90-90a3-0c9c711270c3",
+      "name": "Set Duplicate Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "const submitted = $('Prepare Invoice Data').first().json;\nconst existingInvoices = $input.all().map(item => item.json);\n\nconst duplicateFound = existingInvoices.some(row =>\n  String(row['Invoice Number'] ?? '').trim() ===\n    String(submitted.invoiceNumber ?? '').trim()\n  &&\n  String(row['Supplier'] ?? '').trim().toLowerCase() ===\n    String(submitted.supplier ?? '').trim().toLowerCase()\n);\n\nreturn [\n  {\n    json: {\n      ...submitted,\n      duplicateFound\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -144
+      ],
+      "id": "1a9fc4b6-f64c-4123-a94e-57a9c97ef3d8",
+      "name": "Detect Duplicate Invoice"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice ID": "={{ $json.invoiceId }}",
+            "Invoice Number": "= {{ $json.invoiceNumber }}",
+            "Supplier": "={{ $json.supplier }}",
+            "Project": "={{ $json.project }}",
+            "Invoice Date": "={{ $json.invoiceDate }}",
+            "Due Date": "={{ $json.dueDate }}",
+            "Amount": "={{ $json.amount }}",
+            "Currency": "={{ $json.currency }}",
+            "Description": "={{ $json.description }}",
+            "Approval Required": "={{ $json.approvalRequired }}",
+            "Approval Decision": "={{ $json.approvalDecision }}",
+            "Approved At": "={{ $json.approvedAt }}",
+            "Paid At": "={{ $json.paidAt }}",
+            "Reminder Sent": "={{ $json.reminderSent }}",
+            "Last Reminder Date": "={{ $('Prepare Invoice Data').item.json.lastReminderDate }}",
+            "Submitted At": "={{ $('Prepare Invoice Data').item.json.submittedAt }}",
+            "Status": "={{ $json['status '] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Project",
+              "displayName": "Project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Date",
+              "displayName": "Invoice Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approval Required",
+              "displayName": "Approval Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approval Decision",
+              "displayName": "Approval Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approved At",
+              "displayName": "Approved At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Paid At",
+              "displayName": "Paid At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reminder Sent",
+              "displayName": "Reminder Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last Reminder Date",
+              "displayName": "Last Reminder Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        -16
+      ],
+      "id": "4d737dbb-d189-44ba-b32d-e3a746ad7589",
+      "name": "Append Pending Invoice"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Invoice ID": "={{ $json.invoiceId }}",
+            "Invoice Number": "= {{ $json.invoiceNumber }}",
+            "Supplier": "={{ $json.supplier }}",
+            "Project": "={{ $json.project }}",
+            "Invoice Date": "={{ $json.invoiceDate }}",
+            "Due Date": "={{ $json.dueDate }}",
+            "Amount": "={{ $json.amount }}",
+            "Currency": "={{ $json.currency }}",
+            "Description": "={{ $json.description }}",
+            "Approval Required": "={{ $json.approvalRequired }}",
+            "Approval Decision": "={{ $json.approvalDecision }}",
+            "Approved At": "={{ $json.approvedAt }}",
+            "Paid At": "={{ $json.paidAt }}",
+            "Reminder Sent": "={{ $json.reminderSent }}",
+            "Last Reminder Date": "={{ $('Prepare Invoice Data').item.json.lastReminderDate }}",
+            "Submitted At": "={{ $('Prepare Invoice Data').item.json.submittedAt }}",
+            "Status": "Approved"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Project",
+              "displayName": "Project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice Date",
+              "displayName": "Invoice Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approval Required",
+              "displayName": "Approval Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approval Decision",
+              "displayName": "Approval Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approved At",
+              "displayName": "Approved At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Paid At",
+              "displayName": "Paid At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reminder Sent",
+              "displayName": "Reminder Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last Reminder Date",
+              "displayName": "Last Reminder Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1584,
+        208
+      ],
+      "id": "35eeb6c2-798e-48b5-b366-088c39a37901",
+      "name": "Append Auto Approved Invoice"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3983e68c-1001-4d7c-88a7-c75ed601972a",
+              "name": "invoiceId",
+              "value": "={{ $('Set Pending Approval').item.json.invoiceId }}",
+              "type": "string"
+            },
+            {
+              "id": "07505522-5d1a-4c48-8f07-1f8c13f9d86b",
+              "name": "invoiceNumber",
+              "value": "={{ $('Set Pending Approval').item.json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "bf81761a-b5df-4417-a6f2-d3b00933efa4",
+              "name": "supplier",
+              "value": "={{ $('Set Pending Approval').item.json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "bfdb6af1-7e32-4098-a20c-e0ca1013f78c",
+              "name": "project",
+              "value": "={{ $('Set Pending Approval').item.json.project }}",
+              "type": "string"
+            },
+            {
+              "id": "69ab6996-6df4-4285-86e8-077462fdb565",
+              "name": "amount",
+              "value": "={{ $('Set Pending Approval').item.json.amount }}",
+              "type": "string"
+            },
+            {
+              "id": "a41f37d0-b2f5-45a5-b7e2-9815e437da32",
+              "name": "currency",
+              "value": "={{ $('Set Pending Approval').item.json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "f2fdd76c-ea10-4459-9801-1e58bb370925",
+              "name": "dueDate",
+              "value": "={{ $('Set Pending Approval').item.json.dueDate }}",
+              "type": "string"
+            },
+            {
+              "id": "bbf04235-8431-4b1f-bc27-c4b8bdb7c583",
+              "name": "message",
+              "value": "=Approval required\n\nInvoice ID: {{ $json['Invoice ID'] }}\nInvoice: {{ $json['Invoice Number'] }}\nSupplier: {{ $json['Supplier'] }}\nProject: {{ $json['Project'] }}\nAmount: {{ $json['Amount'] }} {{ $json['Currency'] }}\nDue date: {{ $json['Due Date'] }}\n\nOpen approval form:\nhttps://YOUR_N8N_INSTANCE.app.n8n.cloud/form/YOUR_APPROVAL_FORM_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1824,
+        -16
+      ],
+      "id": "3d81e399-69ba-4f5f-965b-4274e1f75969",
+      "name": "Prepare Approval Notification"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        -16
+      ],
+      "id": "26f26e80-9e81-4d7b-86bd-759f8bfeb34a",
+      "name": "Send Approval Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Invoice Submission Form": {
+      "main": [
+        [
+          {
+            "node": "Prepare Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Invoice Data": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Invoice": {
+      "main": [
+        [
+          {
+            "node": "Detect Duplicate Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Duplicate Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Set Duplicate Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Approval Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Approval Threshold": {
+      "main": [
+        [
+          {
+            "node": "Set Pending Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Auto Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Pending Approval": {
+      "main": [
+        [
+          {
+            "node": "Append Pending Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Auto Approved": {
+      "main": [
+        [
+          {
+            "node": "Append Auto Approved Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Duplicate Invoice": {
+      "main": [
+        [
+          {
+            "node": "Is Duplicate Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Pending Invoice": {
+      "main": [
+        [
+          {
+            "node": "Prepare Approval Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Approval Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

@@ -1,0 +1,1240 @@
+{
+  "name": "03 - Payment Due Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -336,
+        -48
+      ],
+      "id": "dffd876c-fdb0-4acb-828b-90f2a330b3dc",
+      "name": "Daily Payment Check"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "57e2fc4d-baf1-4a1b-aa08-4841f7609f55",
+              "name": "today",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -112,
+        -48
+      ],
+      "id": "7a3b3079-434e-470b-ac16-9400d6aa7d13",
+      "name": "Set Current Date"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        -48
+      ],
+      "id": "bd406495-9741-4abc-a0ae-186a8df3ac40",
+      "name": "Read Invoice Register"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst todayString = $('Set Current Date').first().json.today;\n\nconst today = new Date(todayString + 'T00:00:00');\n\nconst results = [];\n\nfor (const item of rows) {\n  const row = item.json;\n\n  // Only approved invoices should be considered\n  if (String(row['Status'] ?? '').trim() !== 'Approved') {\n    continue;\n  }\n\n  // Ignore invoices already marked as paid\n  const paidAt = String(row['Paid At'] ?? '').trim();\n\n  if (paidAt && paidAt !== '-') {\n    continue;\n  }\n\n  const dueDateString = String(row['Due Date'] ?? '').trim();\n\n  if (!dueDateString) {\n    continue;\n  }\n\n  const dueDate = new Date(dueDateString + 'T00:00:00');\n\n  const diffMs = dueDate.getTime() - today.getTime();\n  const daysUntilDue = Math.round(diffMs / (1000 * 60 * 60 * 24));\n\n  let paymentStatus = null;\n\n  if (daysUntilDue < 0) {\n    paymentStatus = 'Overdue';\n  } else if (daysUntilDue === 0) {\n    paymentStatus = 'Due Today';\n  } else if (daysUntilDue <= 7) {\n    paymentStatus = 'Due Soon';\n  }\n\n  // No reminder needed yet\n  if (!paymentStatus) {\n    continue;\n  }\n\n  // Prevent repeated reminders on the same day\n  const lastReminderDate = String(row['Last Reminder Date'] ?? '').trim();\n\n  if (lastReminderDate === todayString) {\n    continue;\n  }\n\n  results.push({\n    json: {\n      rowNumber: row.row_number,\n      invoiceId: row['Invoice ID'],\n      invoiceNumber: row['Invoice Number'],\n      supplier: row['Supplier'],\n      project: row['Project'],\n      amount: row['Amount'],\n      currency: row['Currency'],\n      dueDate: row['Due Date'],\n      paymentStatus,\n      daysUntilDue,\n      reminderSent: row['Reminder Sent'],\n      lastReminderDate: row['Last Reminder Date'],\n      today: todayString\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -48
+      ],
+      "id": "5c081d72-5c73-4519-94c1-268ff933bfe3",
+      "name": "Evaluate Payment Deadlines"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.paymentStatus }}",
+                    "rightValue": "Due Soon",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8911df30-4f5a-483e-b831-5361e49600ec"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Due Soon"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8d8f073a-f4b6-46a2-9eae-27272aaebd34",
+                    "leftValue": "={{ $json.paymentStatus }}",
+                    "rightValue": "Due Today",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Due Today"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b7fc0cfb-ffa7-4cac-894b-e8051e62236b",
+                    "leftValue": "={{ $json.paymentStatus }}",
+                    "rightValue": "Overdue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Overdue"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        -48
+      ],
+      "id": "5ee30d02-9175-4f48-a870-a55c949029be",
+      "name": "Route Payment Reminder"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "80905db4-35b7-4dab-8a1c-2b2a5685ea9a",
+              "name": "reminderType",
+              "value": "Due Soon",
+              "type": "string"
+            },
+            {
+              "id": "e709f8c2-f36e-42e5-8597-5d5a87d9c8c6",
+              "name": "message",
+              "value": "=Payment reminder: Invoice {{$json.invoiceNumber}} from {{$json.supplier}} is due on {{$json.dueDate}}. Amount: {{$json.amount}} {{$json.currency}}.",
+              "type": "string"
+            },
+            {
+              "id": "d14b6242-0a51-4b0d-b10b-d18c762f52e9",
+              "name": "rowNumber",
+              "value": "={{ $json.rowNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "1145a60b-b88a-4d45-a0e2-64be8f3a9030",
+              "name": "today",
+              "value": "={{ $json.today }}",
+              "type": "string"
+            },
+            {
+              "id": "e71fff75-fddb-4da7-8d30-44c88efab103",
+              "name": "invoiceNumber",
+              "value": "={{ $json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "738135c9-6287-4c09-a0b6-8bc7e9c8e43d",
+              "name": "supplier",
+              "value": "={{ $json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "2f9ff691-583b-4d8e-9e4a-2516fa5107a7",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "string"
+            },
+            {
+              "id": "aa6827f7-59b6-492f-be65-e7c31ba36047",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "65538630-391a-4f96-a0fa-01e3dafb657c",
+              "name": "dueDate",
+              "value": "={{ $json.dueDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        -160
+      ],
+      "id": "bb2d356e-21cb-4b60-bdb1-f5ad5af02d06",
+      "name": "Prepare Due Soon Reminder"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "96b0a883-ac7c-47d7-b6eb-ed18d0540570",
+              "name": "reminderType",
+              "value": "Due Today",
+              "type": "string"
+            },
+            {
+              "id": "9ce62e93-37b5-49b8-a80f-90e525b9a253",
+              "name": "message",
+              "value": "=Payment due today: Invoice {{$json.invoiceNumber}} from {{$json.supplier}} is due today. Amount: {{$json.amount}} {{$json.currency}}.",
+              "type": "string"
+            },
+            {
+              "id": "c5e22f9a-c0c8-451d-bbbb-59c37ebf7309",
+              "name": "rowNumber",
+              "value": "={{ $json.rowNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "a40b24dc-4045-4a94-8e95-6d988b30cfee",
+              "name": "today",
+              "value": "={{ $json.today }}",
+              "type": "string"
+            },
+            {
+              "id": "4c3759f2-75b9-443a-b22b-b80b3d5b54f4",
+              "name": "invoiceNumber",
+              "value": "={{ $json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "60fbeebf-4a49-45a7-805d-c996d346f64e",
+              "name": "supplier",
+              "value": "={{ $json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "b62a8754-4f83-4f20-90b3-3f9b3a76fbd8",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "string"
+            },
+            {
+              "id": "da914720-05da-49f7-836b-bac8043554da",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "96751601-0f4d-4631-b591-c7332d9cd040",
+              "name": "dueDate",
+              "value": "={{ $json.dueDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        48
+      ],
+      "id": "b217474c-31f3-40cd-a995-55d726e1baea",
+      "name": "Prepare Due Today Reminder"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0c972e1-10f7-4880-8261-376531de5199",
+              "name": "reminderType",
+              "value": "Overdue",
+              "type": "string"
+            },
+            {
+              "id": "d98f139b-fae5-4b8a-b66a-41002594ef74",
+              "name": "message",
+              "value": "=OVERDUE PAYMENT: Invoice {{$json.invoiceNumber}} from {{$json.supplier}} was due on {{$json.dueDate}}. Amount: {{$json.amount}} {{$json.currency}}.",
+              "type": "string"
+            },
+            {
+              "id": "8d482c2d-d8ca-40df-aa84-6201b4a6a5b7",
+              "name": "rowNumber",
+              "value": "={{ $json.rowNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "c8d2f884-2fa4-47ae-a1d1-54b1d65ef1c6",
+              "name": "today",
+              "value": "={{ $json.today }}",
+              "type": "string"
+            },
+            {
+              "id": "531e5a4e-947b-4a5b-80b3-d01691fa15c9",
+              "name": "invoiceNumber",
+              "value": "={{ $json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "7f025adf-3f61-414d-8611-84a8be31ed6a",
+              "name": "supplier",
+              "value": "={{ $json.supplier }}",
+              "type": "string"
+            },
+            {
+              "id": "1762499f-c708-48aa-b15d-7d429a10cca1",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "string"
+            },
+            {
+              "id": "52f416af-9397-43c8-8d28-5b10e1d41fe0",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "89bc8242-f570-4b5d-8012-39a3827143e9",
+              "name": "dueDate",
+              "value": "={{ $json.dueDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        784,
+        256
+      ],
+      "id": "3b665a05-f278-4827-9332-2e3c3a5d7b5a",
+      "name": "Prepare Overdue Reminder"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        -160
+      ],
+      "id": "4b0ed7e7-6bca-4d14-9d5c-64969f8faff2",
+      "name": "Send Due Soon Reminder"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        48
+      ],
+      "id": "cec02efa-c976-4099-925b-76ab8ed4ca0d",
+      "name": "Send Due Today Reminder"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1008,
+        256
+      ],
+      "id": "ac4e4ee5-d5a8-4b45-a827-354731762870",
+      "name": "Send Overdue Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Prepare Due Soon Reminder').item.json.rowNumber }}",
+            "Last Reminder Date": "={{ $('Prepare Due Soon Reminder').item.json.today }}",
+            "Reminder Sent": "Yes"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Project",
+              "displayName": "Project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Date",
+              "displayName": "Invoice Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Required",
+              "displayName": "Approval Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Decision",
+              "displayName": "Approval Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approved At",
+              "displayName": "Approved At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Paid At",
+              "displayName": "Paid At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Reminder Sent",
+              "displayName": "Reminder Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Last Reminder Date",
+              "displayName": "Last Reminder Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        -160
+      ],
+      "id": "754766e6-62f0-4ab0-9e47-db2e03c6e532",
+      "name": "Track Due Soon Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Prepare Due Today Reminder').item.json.rowNumber }}",
+            "Last Reminder Date": "={{ $('Prepare Due Today Reminder').item.json.today }}",
+            "Reminder Sent": "Yes"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Project",
+              "displayName": "Project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Date",
+              "displayName": "Invoice Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Required",
+              "displayName": "Approval Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Decision",
+              "displayName": "Approval Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approved At",
+              "displayName": "Approved At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Paid At",
+              "displayName": "Paid At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Reminder Sent",
+              "displayName": "Reminder Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Last Reminder Date",
+              "displayName": "Last Reminder Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        48
+      ],
+      "id": "e21f5a2b-b2fd-446f-9ebc-41d10a8037ab",
+      "name": "Track Due Today Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Invoice Payment Register"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Invoices"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Prepare Overdue Reminder').item.json.rowNumber }}",
+            "Last Reminder Date": "={{ $('Prepare Overdue Reminder').item.json.today }}",
+            "Reminder Sent": "Yes"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Project",
+              "displayName": "Project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Invoice Date",
+              "displayName": "Invoice Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Required",
+              "displayName": "Approval Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approval Decision",
+              "displayName": "Approval Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Approved At",
+              "displayName": "Approved At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Paid At",
+              "displayName": "Paid At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Reminder Sent",
+              "displayName": "Reminder Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Last Reminder Date",
+              "displayName": "Last Reminder Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1232,
+        256
+      ],
+      "id": "d614dd55-69f6-40c0-81ca-798cdcf961b1",
+      "name": "Track Overdue Reminder"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Payment Check": {
+      "main": [
+        [
+          {
+            "node": "Set Current Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Current Date": {
+      "main": [
+        [
+          {
+            "node": "Read Invoice Register",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Invoice Register": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Payment Deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Payment Deadlines": {
+      "main": [
+        [
+          {
+            "node": "Route Payment Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Payment Reminder": {
+      "main": [
+        [
+          {
+            "node": "Prepare Due Soon Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Due Today Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Overdue Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Due Soon Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Due Soon Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Due Today Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Due Today Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Overdue Reminder": {
+      "main": [
+        [
+          {
+            "node": "Send Overdue Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Due Soon Reminder": {
+      "main": [
+        [
+          {
+            "node": "Track Due Soon Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Due Today Reminder": {
+      "main": [
+        [
+          {
+            "node": "Track Due Today Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Overdue Reminder": {
+      "main": [
+        [
+          {
+            "node": "Track Overdue Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
